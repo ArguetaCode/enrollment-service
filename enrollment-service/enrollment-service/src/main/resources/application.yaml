@@ -1,14 +1,27 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:8084}
 
 spring:
   application:
     name: enrollment-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/enrollment_db
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/enrollment_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:campus}
+    password: ${SPRING_RABBITMQ_PASSWORD:campus123}
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_LISTENER_AUTO_STARTUP:true}
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
 
   jpa:
     hibernate:
@@ -19,3 +32,16 @@ spring:
     properties:
       hibernate:
         "[format_sql]": true
+
+campusenroll:
+  services:
+    student-base-url: ${STUDENT_SERVICE_URL:http://student-service:8081}
+    course-base-url: ${COURSE_SERVICE_URL:http://course-service:8082}
+    billing-base-url: ${BILLING_SERVICE_URL:http://billing-service:8083}
+
+  messaging:
+    payments-exchange: campusenroll.payments
+    payment-approved-routing-key: payment.approved
+    payment-failed-routing-key: payment.failed
+    payment-approved-queue: enrollment.payment.approved
+    payment-failed-queue: enrollment.payment.failed

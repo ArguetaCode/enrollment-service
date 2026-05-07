@@ -1,6 +1,29 @@
+
 version: '3.9'
 
 services:
+  enrollment-service:
+    build:
+      context: ./enrollment-service/enrollment-service
+      dockerfile: Dockerfile
+    container_name: campusenroll-enrollment-service
+    restart: always
+    environment:
+      SERVER_PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/enrollment_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      STUDENT_SERVICE_URL: http://student-service:8081
+      COURSE_SERVICE_URL: http://course-service:8082
+      BILLING_SERVICE_URL: http://billing-service:8083
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - enrollment-net
+      - campusenroll-net
 
   postgres:
     image: postgres:16
@@ -25,6 +48,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - enrollment-net
 
 volumes:
   postgres_data:
+
+networks:
+  enrollment-net:
+    driver: bridge
+  campusenroll-net:
+    external: true
+    name: ${CAMPUSENROLL_DOCKER_NETWORK:-campusenroll-ha_campusenroll-net}

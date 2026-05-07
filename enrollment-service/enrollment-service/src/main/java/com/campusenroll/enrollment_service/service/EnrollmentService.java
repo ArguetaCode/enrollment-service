@@ -3,6 +3,12 @@ package com.campusenroll.enrollment_service.service;
 import com.campusenroll.enrollment_service.dto.EnrollmentRequest;
 import com.campusenroll.enrollment_service.dto.EnrollmentResponse;
 import com.campusenroll.enrollment_service.entity.Enrollment;
+import com.campusenroll.enrollment_service.enums.EnrollmentStatus;
+import com.campusenroll.enrollment_service.integration.BillingServiceClient;
+import com.campusenroll.enrollment_service.integration.CourseServiceClient;
+import com.campusenroll.enrollment_service.integration.StudentServiceClient;
+import com.campusenroll.enrollment_service.integration.dto.PaymentEvent;
+import com.campusenroll.enrollment_service.integration.dto.PaymentRequest;
 import com.campusenroll.enrollment_service.repository.EnrollmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,11 +21,16 @@ import java.util.List;
 public class EnrollmentService {
 
     private final EnrollmentRepository repository;
+    private final StudentServiceClient studentServiceClient;
+    private final CourseServiceClient courseServiceClient;
+    private final BillingServiceClient billingServiceClient;
 
-    @Transactional
     public EnrollmentResponse createEnrollment(
             EnrollmentRequest request
     ) {
+
+        studentServiceClient.validateStudentExists(request.getStudentId());
+        courseServiceClient.validateSectionExists(request.getSectionId());
 
         boolean exists =
                 repository.existsByStudentIdAndSectionId(
@@ -28,22 +39,43 @@ public class EnrollmentService {
                 );
 
         if (exists) {
-
             throw new RuntimeException(
-                    "El estudiante ya está inscrito"
+                    "El estudiante ya esta inscrito"
             );
         }
 
-        Enrollment enrollment =
-                Enrollment.builder()
-                        .studentId(request.getStudentId())
-                        .sectionId(request.getSectionId())
-                        .build();
+        boolean seatReserved = false;
 
-        Enrollment saved =
-                repository.save(enrollment);
+        try {
+            courseServiceClient.reserveSeat(request.getSectionId());
+            seatReserved = true;
 
-        return mapToResponse(saved);
+            Enrollment enrollment =
+                    Enrollment.builder()
+                            .studentId(request.getStudentId())
+                            .sectionId(request.getSectionId())
+                            .build();
+
+            Enrollment saved =
+                    repository.save(enrollment);
+
+            billingServiceClient.processPayment(
+                    new PaymentRequest(
+                            saved.getId(),
+                            saved.getStudentId(),
+                            request.getAmount(),
+                            request.isSimulatePaymentFailure()
+                    )
+            );
+
+            return mapToResponse(saved);
+        } catch (RuntimeException ex) {
+            if (seatReserved) {
+                courseServiceClient.releaseSeat(request.getSectionId());
+            }
+
+            throw ex;
+        }
     }
 
     public EnrollmentResponse getEnrollmentById(
@@ -54,7 +86,7 @@ public class EnrollmentService {
                 repository.findById(id)
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Inscripción no encontrada"
+                                        "Inscripcion no encontrada"
                                 )
                         );
 
@@ -72,6 +104,51 @@ public class EnrollmentService {
     public void deleteEnrollment(Long id) {
 
         repository.deleteById(id);
+    }
+
+    @Transactional
+    public void confirmEnrollmentPayment(PaymentEvent event) {
+
+        Enrollment enrollment =
+                findEnrollmentFromPaymentEvent(event);
+
+        if (enrollment.getStatus() != EnrollmentStatus.PENDING_PAYMENT) {
+            return;
+        }
+
+        courseServiceClient.confirmSeat(enrollment.getSectionId());
+
+        enrollment.setStatus(EnrollmentStatus.CONFIRMED);
+        enrollment.setPaymentReference(event.paymentId().toString());
+    }
+
+    @Transactional
+    public void failEnrollmentPayment(PaymentEvent event) {
+
+        Enrollment enrollment =
+                findEnrollmentFromPaymentEvent(event);
+
+        if (enrollment.getStatus() != EnrollmentStatus.PENDING_PAYMENT) {
+            return;
+        }
+
+        courseServiceClient.releaseSeat(enrollment.getSectionId());
+
+        enrollment.setStatus(EnrollmentStatus.PAYMENT_FAILED);
+        enrollment.setPaymentReference(event.paymentId().toString());
+    }
+
+    private Enrollment findEnrollmentFromPaymentEvent(
+            PaymentEvent event
+    ) {
+
+        return repository.findById(event.enrollmentId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Inscripcion no encontrada para pago "
+                                        + event.paymentId()
+                        )
+                );
     }
 
     private EnrollmentResponse mapToResponse(
