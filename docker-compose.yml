@@ -1,7 +1,63 @@
-
 version: '3.9'
 
 services:
+  postgres:
+    image: postgres:16
+    container_name: campusenroll_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: campusenroll
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - enrollment-net
+
+  student-service:
+    build:
+      context: ../student-service
+      dockerfile: Dockerfile
+    container_name: campusenroll_student_service
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/student_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - enrollment-net
+
+  course-service:
+    build:
+      context: ../course-service
+      dockerfile: Dockerfile
+    container_name: campusenroll_course_service
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/course_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - enrollment-net
+
   enrollment-service:
     build:
       context: ./enrollment-service/enrollment-service
@@ -13,6 +69,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/enrollment_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: campusenroll-rabbitmq
+      SPRING_RABBITMQ_USERNAME: campus
+      SPRING_RABBITMQ_PASSWORD: campus123
       STUDENT_SERVICE_URL: http://student-service:8081
       COURSE_SERVICE_URL: http://course-service:8082
       BILLING_SERVICE_URL: http://billing-service:8083
@@ -21,35 +80,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      student-service:
+        condition: service_started
+      course-service:
+        condition: service_started
     networks:
       - enrollment-net
       - campusenroll-net
-
-  postgres:
-    image: postgres:16
-
-    container_name: enrollment_postgres
-
-    restart: always
-
-    environment:
-      POSTGRES_DB: enrollment_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-
-    ports:
-      - "5433:5432"
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - enrollment-net
 
 volumes:
   postgres_data:
