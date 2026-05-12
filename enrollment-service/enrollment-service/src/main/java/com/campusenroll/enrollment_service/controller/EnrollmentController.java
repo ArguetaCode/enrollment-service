@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -24,6 +25,12 @@ public class EnrollmentController {
     ) {
 
         return service.createEnrollment(request);
+    }
+
+    @GetMapping("/enrollments")
+    public List<EnrollmentResponse> getAllEnrollments() {
+
+        return service.getAllEnrollments();
     }
 
     @GetMapping("/enrollments/{id}")
@@ -48,5 +55,14 @@ public class EnrollmentController {
     ) {
 
         service.deleteEnrollment(id);
+    }
+
+    @GetMapping("/health")
+    public Map<String, String> health() {
+
+        return Map.of(
+                "service", "enrollment-service",
+                "status", "UP"
+        );
     }
 }

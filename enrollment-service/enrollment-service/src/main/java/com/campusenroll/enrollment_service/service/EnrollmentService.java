@@ -93,6 +93,14 @@ public class EnrollmentService {
         return mapToResponse(enrollment);
     }
 
+    public List<EnrollmentResponse> getAllEnrollments() {
+
+        return repository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
     public List<Enrollment> getStudentEnrollments(
             Long studentId
     ) {
