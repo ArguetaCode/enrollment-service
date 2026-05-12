@@ -34,9 +34,9 @@ spring:
 
 campusenroll:
   services:
-    student-base-url: ${STUDENT_SERVICE_URL:http://student-service:8081}
-    course-base-url: ${COURSE_SERVICE_URL:http://course-service:8082}
-    billing-base-url: ${BILLING_SERVICE_URL:http://billing-service:8083}
+    student-base-url: ${STUDENT_SERVICE_URL:http://localhost:8081}
+    course-base-url: ${COURSE_SERVICE_URL:http://localhost:8082}
+    billing-base-url: ${BILLING_SERVICE_URL:http://localhost:8083}
 
   messaging:
     payments-exchange: campusenroll.payments
@@ -44,3 +44,12 @@ campusenroll:
     payment-failed-routing-key: payment.failed
     payment-approved-queue: enrollment.payment.approved
     payment-failed-queue: enrollment.payment.failed
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

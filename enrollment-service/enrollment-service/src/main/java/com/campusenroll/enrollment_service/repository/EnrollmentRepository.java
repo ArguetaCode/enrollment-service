@@ -1,6 +1,7 @@
 package com.campusenroll.enrollment_service.repository;
 
 import com.campusenroll.enrollment_service.entity.Enrollment;
+import com.campusenroll.enrollment_service.enums.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,6 +17,11 @@ public interface EnrollmentRepository
 
     List<Enrollment> findByStudentId(
             Long studentId
+    );
+
+    List<Enrollment> findByStudentIdAndStatusIn(
+            Long studentId,
+            List<EnrollmentStatus> statuses
     );
 
     Optional<Enrollment> findByIdAndStudentId(
