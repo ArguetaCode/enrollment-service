@@ -1,14 +1,14 @@
 server:
-  port: ${SERVER_PORT:8084}
+  port: ${SERVER_PORT:8085}
 
 spring:
   application:
     name: enrollment-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/enrollment_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:55432/campusenroll}
+    username: ${SPRING_DATASOURCE_USERNAME:campus}
+    password: ${SPRING_DATASOURCE_PASSWORD:campus123}
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
@@ -26,12 +26,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-
     show-sql: true
-
     properties:
       hibernate:
         "[format_sql]": true
+        default_schema: campusenroll
 
 campusenroll:
   services:
