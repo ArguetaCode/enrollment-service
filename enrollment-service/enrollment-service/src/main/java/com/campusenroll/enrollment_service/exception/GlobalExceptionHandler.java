@@ -1,82 +1,46 @@
 package com.campusenroll.enrollment_service.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, Object> handleRuntimeException(
-            RuntimeException ex
-    ) {
-
-        Map<String, Object> error =
-                new HashMap<>();
-
-        error.put(
-                "timestamp",
-                LocalDateTime.now()
-        );
-
-        error.put(
-                "status",
-                400
-        );
-
-        error.put(
-                "error",
-                "Bad Request"
-        );
-
-        error.put(
-                "message",
-                ex.getMessage()
-        );
-
-        return error;
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(
-            MethodArgumentNotValidException.class
-    )
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, Object> handleValidationException(
-            MethodArgumentNotValidException ex
-    ) {
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
 
-        Map<String, Object> error =
-                new HashMap<>();
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldError() != null
+                ? ex.getBindingResult().getFieldError().getDefaultMessage()
+                : "Validation error";
+        return buildError(HttpStatus.BAD_REQUEST, message);
+    }
 
-        error.put(
-                "timestamp",
-                LocalDateTime.now()
-        );
-
-        error.put(
-                "status",
-                400
-        );
-
-        error.put(
-                "error",
-                "Validation Error"
-        );
-
-        error.put(
-                "message",
-                ex.getBindingResult()
-                        .getFieldError()
-                        .getDefaultMessage()
-        );
-
-        return error;
+    private ResponseEntity<Map<String, Object>> buildError(HttpStatus status, String message) {
+        Map<String, Object> error = new LinkedHashMap<>();
+        error.put("timestamp", LocalDateTime.now());
+        error.put("status", status.value());
+        error.put("error", status.getReasonPhrase());
+        error.put("message", message);
+        return ResponseEntity.status(status).body(error);
     }
 }
