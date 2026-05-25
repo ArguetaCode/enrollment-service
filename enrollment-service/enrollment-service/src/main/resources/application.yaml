@@ -6,15 +6,15 @@ spring:
     name: enrollment-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:55432/campusenroll}
-    username: ${SPRING_DATASOURCE_USERNAME:campus}
-    password: ${SPRING_DATASOURCE_PASSWORD:campus123}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:55432}/${DB_NAME:campusenroll}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:campus}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:campus123}}
 
   rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:localhost}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:campus}
-    password: ${SPRING_RABBITMQ_PASSWORD:campus123}
+    host: ${SPRING_RABBITMQ_HOST:${RABBITMQ_HOST:localhost}}
+    port: ${SPRING_RABBITMQ_PORT:${RABBITMQ_PORT:5672}}
+    username: ${SPRING_RABBITMQ_USERNAME:${RABBITMQ_USERNAME:campus}}
+    password: ${SPRING_RABBITMQ_PASSWORD:${RABBITMQ_PASSWORD:campus123}}
     listener:
       simple:
         auto-startup: ${RABBITMQ_LISTENER_AUTO_STARTUP:true}
@@ -25,8 +25,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${ENROLLMENT_SHOW_SQL:false}
     properties:
       hibernate:
         "[format_sql]": true
@@ -37,6 +37,8 @@ campusenroll:
     student-base-url: ${STUDENT_SERVICE_URL:http://localhost:8081}
     course-base-url: ${COURSE_SERVICE_URL:http://localhost:8082}
     billing-base-url: ${BILLING_SERVICE_URL:http://localhost:8083}
+    connect-timeout-ms: ${SERVICE_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${SERVICE_READ_TIMEOUT_MS:5000}
 
   messaging:
     payments-exchange: campusenroll.payments
@@ -53,3 +55,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    org.hibernate.SQL: ${ENROLLMENT_HIBERNATE_SQL_LOG_LEVEL:WARN}
+    org.hibernate.orm.jdbc.bind: ${ENROLLMENT_HIBERNATE_BIND_LOG_LEVEL:WARN}
+

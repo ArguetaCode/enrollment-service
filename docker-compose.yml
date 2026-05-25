@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# DEPRECADO (FASE 2)
+# -----------------------------------------------------------------------------
+# Este archivo se mantiene solo por referencia historica.
+# NO usar para levantar el sistema actual de CampusEnroll-HA.
+#
+# Razones:
+# - Usa databases legacy (student_db/course_db/enrollment_db).
+# - Define puerto legacy para enrollment-service (8084).
+# - No refleja el flujo oficial con Flyway + compose principal.
+#
+# Compose oficial:
+#   d:/Proyectos/proyectos_propios/proyecto_BD/campusenroll-ha/docker-compose.yml
+# -----------------------------------------------------------------------------
+
 version: '3.9'
 
 services:

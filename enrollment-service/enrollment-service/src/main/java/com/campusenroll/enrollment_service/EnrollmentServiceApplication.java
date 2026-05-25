@@ -13,14 +13,16 @@ public class EnrollmentServiceApplication {
 				args
 		);
 
-		System.out.println("""
+		String serverPort = System.getenv().getOrDefault("SERVER_PORT", "8085");
+
+		System.out.printf("""
 				
 		========================================
 		  ENROLLMENT-SERVICE INICIADO
 		========================================
 		
 		URL:
-		http://localhost:8084
+		http://localhost:%s
 		
 		Base de datos:
 		PostgreSQL Docker
@@ -30,6 +32,6 @@ public class EnrollmentServiceApplication {
 		
 		========================================
 				
-		""");
+		""", serverPort);
 	}
 }

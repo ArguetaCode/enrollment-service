@@ -12,4 +12,8 @@ public class ServiceEndpointsProperties {
     private String courseBaseUrl;
 
     private String billingBaseUrl;
+
+    private int connectTimeoutMs = 3000;
+
+    private int readTimeoutMs = 5000;
 }
