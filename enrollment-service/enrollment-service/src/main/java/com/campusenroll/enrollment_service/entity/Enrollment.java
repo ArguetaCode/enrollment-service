@@ -9,18 +9,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "enrollments",
-
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_student_section",
-
-                        columnNames = {
-                                "student_id",
-                                "section_id"
-                        }
-                )
-        },
-
         indexes = {
 
                 @Index(

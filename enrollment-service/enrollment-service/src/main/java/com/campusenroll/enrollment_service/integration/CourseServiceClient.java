@@ -1,6 +1,7 @@
 package com.campusenroll.enrollment_service.integration;
 
 import com.campusenroll.enrollment_service.exception.BusinessException;
+import com.campusenroll.enrollment_service.exception.ConflictException;
 import com.campusenroll.enrollment_service.exception.ResourceNotFoundException;
 import com.campusenroll.enrollment_service.integration.dto.CourseSectionResponse;
 import com.campusenroll.enrollment_service.integration.dto.SectionScheduleViewResponse;
@@ -66,6 +67,15 @@ public class CourseServiceClient {
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 409) {
+                if (ex.getResponseBodyAsString().contains("No seats available")) {
+                    throw new ConflictException("La seccion no tiene cupos disponibles: " + sectionId);
+                }
+                if (ex.getResponseBodyAsString().contains("Section is not ACTIVE")) {
+                    throw new ConflictException("La seccion no esta activa: " + sectionId);
+                }
+                throw new ConflictException("No se pudo reservar cupo en la seccion: " + sectionId);
+            }
             throw new BusinessException("No se pudo reservar cupo en sectionId " + sectionId);
         }
     }

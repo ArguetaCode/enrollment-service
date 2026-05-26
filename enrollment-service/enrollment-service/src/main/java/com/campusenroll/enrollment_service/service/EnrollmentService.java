@@ -5,6 +5,7 @@ import com.campusenroll.enrollment_service.dto.EnrollmentResponse;
 import com.campusenroll.enrollment_service.entity.Enrollment;
 import com.campusenroll.enrollment_service.enums.EnrollmentStatus;
 import com.campusenroll.enrollment_service.exception.BusinessException;
+import com.campusenroll.enrollment_service.exception.ConflictException;
 import com.campusenroll.enrollment_service.exception.ResourceNotFoundException;
 import com.campusenroll.enrollment_service.integration.BillingServiceClient;
 import com.campusenroll.enrollment_service.integration.CourseServiceClient;
@@ -17,6 +18,7 @@ import com.campusenroll.enrollment_service.integration.dto.StudentStatusResponse
 import com.campusenroll.enrollment_service.repository.EnrollmentRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +68,15 @@ public class EnrollmentService {
             );
 
             return mapToResponse(applyPaymentResponse(saved, payment));
+        } catch (DataIntegrityViolationException ex) {
+            if (saved == null) {
+                if (seatReserved) {
+                    safeReleaseSeat(request.getSectionId());
+                }
+                throw new ConflictException("El estudiante ya tiene una inscripcion activa en esta seccion");
+            }
+            failPendingEnrollment(saved.getId());
+            throw new BusinessException("Error procesando inscripcion y pago");
         } catch (ResourceNotFoundException | BusinessException ex) {
             if (saved != null) {
                 failPendingEnrollment(saved.getId());
@@ -131,7 +142,7 @@ public class EnrollmentService {
         List<Enrollment> existing = repository.findByStudentIdAndStatusIn(studentId, ACTIVE_ENROLLMENT_STATUSES);
         boolean duplicated = existing.stream().anyMatch(e -> sectionId.equals(e.getSectionId()));
         if (duplicated) {
-            throw new BusinessException("El estudiante ya tiene una inscripcion activa en esta seccion");
+            throw new ConflictException("El estudiante ya tiene una inscripcion activa en esta seccion");
         }
     }
 
