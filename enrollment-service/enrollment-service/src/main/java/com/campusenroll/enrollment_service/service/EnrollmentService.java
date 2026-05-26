@@ -33,8 +33,8 @@ public class EnrollmentService {
     private final StudentServiceClient studentServiceClient;
     private final CourseServiceClient courseServiceClient;
     private final BillingServiceClient billingServiceClient;
+    private final EnrollmentPaymentTransitionService paymentTransitionService;
 
-    @Transactional
     public EnrollmentResponse createEnrollment(EnrollmentRequest request) {
         validateStudentActive(request.getStudentId());
         courseServiceClient.getSection(request.getSectionId());
@@ -42,7 +42,7 @@ public class EnrollmentService {
         validateScheduleOverlap(request.getStudentId(), request.getSectionId());
 
         boolean seatReserved = false;
-        Enrollment saved;
+        Enrollment saved = null;
 
         try {
             courseServiceClient.reserveSeat(request.getSectionId());
@@ -53,6 +53,7 @@ public class EnrollmentService {
                     .sectionId(request.getSectionId())
                     .status(EnrollmentStatus.PENDING_PAYMENT)
                     .build();
+            // Commit PENDING_PAYMENT before billing validates and records its payment.
             saved = repository.save(enrollment);
 
             PaymentResponse payment = billingServiceClient.processPayment(
@@ -64,23 +65,18 @@ public class EnrollmentService {
                     )
             );
 
-            saved.setPaymentReference(payment.paymentId() != null ? String.valueOf(payment.paymentId()) : null);
-            if ("APPROVED".equalsIgnoreCase(payment.status())) {
-                saved.setStatus(EnrollmentStatus.CONFIRMED);
-                courseServiceClient.confirmSeat(request.getSectionId());
-            } else {
-                saved.setStatus(EnrollmentStatus.PAYMENT_FAILED);
-                courseServiceClient.releaseSeat(request.getSectionId());
-            }
-
-            return mapToResponse(repository.save(saved));
+            return mapToResponse(applyPaymentResponse(saved, payment));
         } catch (ResourceNotFoundException | BusinessException ex) {
-            if (seatReserved) {
+            if (saved != null) {
+                failPendingEnrollment(saved.getId());
+            } else if (seatReserved) {
                 safeReleaseSeat(request.getSectionId());
             }
             throw ex;
         } catch (RuntimeException ex) {
-            if (seatReserved) {
+            if (saved != null) {
+                failPendingEnrollment(saved.getId());
+            } else if (seatReserved) {
                 safeReleaseSeat(request.getSectionId());
             }
             throw new BusinessException("Error procesando inscripcion y pago");
@@ -114,28 +110,14 @@ public class EnrollmentService {
 
     @Transactional
     public void confirmEnrollmentPayment(PaymentEvent event) {
-        Enrollment enrollment = findEnrollmentFromPaymentEvent(event);
-
-        if (enrollment.getStatus() != EnrollmentStatus.PENDING_PAYMENT) {
-            return;
-        }
-
-        courseServiceClient.confirmSeat(enrollment.getSectionId());
-        enrollment.setStatus(EnrollmentStatus.CONFIRMED);
-        enrollment.setPaymentReference(event.paymentId() != null ? event.paymentId().toString() : null);
+        validatePaymentEvent(event, "APPROVED");
+        paymentTransitionService.approvePayment(event.enrollmentId(), event.paymentId());
     }
 
     @Transactional
     public void failEnrollmentPayment(PaymentEvent event) {
-        Enrollment enrollment = findEnrollmentFromPaymentEvent(event);
-
-        if (enrollment.getStatus() != EnrollmentStatus.PENDING_PAYMENT) {
-            return;
-        }
-
-        courseServiceClient.releaseSeat(enrollment.getSectionId());
-        enrollment.setStatus(EnrollmentStatus.PAYMENT_FAILED);
-        enrollment.setPaymentReference(event.paymentId() != null ? event.paymentId().toString() : null);
+        validatePaymentEvent(event, "FAILED");
+        paymentTransitionService.failPayment(event.enrollmentId(), event.paymentId());
     }
 
     private void validateStudentActive(Long studentId) {
@@ -193,11 +175,38 @@ public class EnrollmentService {
         }
     }
 
-    private Enrollment findEnrollmentFromPaymentEvent(PaymentEvent event) {
-        return repository.findById(event.enrollmentId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Inscripcion no encontrada para pago " + event.paymentId()
-                ));
+    private Enrollment applyPaymentResponse(Enrollment enrollment, PaymentResponse payment) {
+        if (payment == null
+                || payment.paymentId() == null
+                || !enrollment.getId().equals(payment.enrollmentId())
+                || !enrollment.getStudentId().equals(payment.studentId())) {
+            throw new BusinessException("Billing devolvio una respuesta de pago invalida");
+        }
+
+        if ("APPROVED".equalsIgnoreCase(payment.status())) {
+            return paymentTransitionService.approvePayment(enrollment.getId(), payment.paymentId());
+        }
+        if ("FAILED".equalsIgnoreCase(payment.status())) {
+            return paymentTransitionService.failPayment(enrollment.getId(), payment.paymentId());
+        }
+        throw new BusinessException("Estado de pago no permitido: " + payment.status());
+    }
+
+    private void validatePaymentEvent(PaymentEvent event, String expectedStatus) {
+        if (event == null || event.paymentId() == null || event.enrollmentId() == null) {
+            throw new BusinessException("Evento de pago invalido");
+        }
+        if (!expectedStatus.equalsIgnoreCase(event.status())) {
+            throw new BusinessException("Evento de pago no coincide con la transicion solicitada");
+        }
+    }
+
+    private void failPendingEnrollment(Long enrollmentId) {
+        try {
+            paymentTransitionService.failPaymentProcessing(enrollmentId);
+        } catch (BusinessException ignored) {
+            // A terminal transition already won the race with this recovery path.
+        }
     }
 
     private EnrollmentResponse mapToResponse(Enrollment enrollment) {
