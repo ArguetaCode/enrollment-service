@@ -42,10 +42,13 @@ campusenroll:
 
   messaging:
     payments-exchange: campusenroll.payments
+    dead-letter-exchange: campusenroll.dlx
     payment-approved-routing-key: payment.approved
     payment-failed-routing-key: payment.failed
     payment-approved-queue: enrollment.payment.approved
     payment-failed-queue: enrollment.payment.failed
+    payment-approved-dlq: enrollment.payment.approved.dlq
+    payment-failed-dlq: enrollment.payment.failed.dlq
 
 management:
   endpoints:
