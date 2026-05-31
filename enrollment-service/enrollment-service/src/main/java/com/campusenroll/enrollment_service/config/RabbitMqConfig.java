@@ -136,7 +136,6 @@ public class RabbitMqConfig {
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
-        factory.setMessageConverter(jsonMessageConverter);
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(
                 RetryInterceptorBuilder.stateless()
