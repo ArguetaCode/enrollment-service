@@ -3,13 +3,8 @@ package com.campusenroll.enrollment_service.repository;
 import com.campusenroll.enrollment_service.entity.Enrollment;
 import com.campusenroll.enrollment_service.enums.EnrollmentStatus;
 import jakarta.persistence.LockModeType;
-<<<<<<< Updated upstream
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.JpaRepository;
-=======
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
->>>>>>> Stashed changes
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -39,10 +34,6 @@ public interface EnrollmentRepository
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-<<<<<<< Updated upstream
     @Query("select e from Enrollment e where e.id = :id")
-=======
-    @Query("select enrollment from Enrollment enrollment where enrollment.id = :id")
->>>>>>> Stashed changes
     Optional<Enrollment> findByIdForUpdate(@Param("id") Long id);
 }
